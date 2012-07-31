@@ -57,7 +57,7 @@ void closeLogFile(){
 
 static char hexchar(uint8_t value){
 	static char str[]="0123456789abcdef";
-	if(value>=16) throw std::runtime_error("internal error");
+	if(value>=16) return '*';
 	return str[value];
 }
 
@@ -292,7 +292,7 @@ struct Instance
 	int v2;
 	int v3;
 	int v4;
-	char flags;
+	unsigned char flags;
 	char gap_345[3];
 	int timestamp;
 	int timestampEcho;
@@ -322,7 +322,8 @@ struct Instance
 	int v18;
 	int fillPacketHeader(int a1,int sessionid){		
 		std::ostringstream oss;		
-		oss<<"sessionid:"<<sessionid<<",data: "<<hexBuffer((unsigned char*)this->ptr,this->len);		
+		oss<<"sessionid:"<<sessionid<<",flags: "<<hexchar(this->flags>>4)<<hexchar(this->flags&0xF)
+		<<",data: "<<hexBuffer((unsigned char*)this->ptr,this->len);		
 		std::string msg=oss.str();
 		logToFile("createPacket",msg);
 		int ret=oldfillPacketHeader(this,0,a1,sessionid);
