@@ -1,6 +1,7 @@
 flash-rtmfp-hook
 ================
 WARNING: This project only work with flash player "11.2.202.233" win32 version!
+WARNING: This project has been stopped.
 
 This is a hook dll for analysis the Real-Time Media Flow Protocol(RTMFP) of Adobe Flash Player. You can inject this dll into flash player's process, so that it will log the AES key and every packet of RTMFP into a log file named "flash.log" in the current working directory. 
 
