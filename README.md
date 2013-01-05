@@ -10,6 +10,7 @@ The flash player to be injected must has the version of "11.5.502.135 standalone
 If you are using Vista or Windows 7, you must disable ASLR(Address Space Load Randomization) first !!!
 Therefore, You should:
 1. Modify the PE Header of that exe file.
+
 2. Or, you can download "Enhanced Mitigation Experience Toolkit" from http://www.microsoft.com/download/, use that tool to disable ASLR globally.
 
 To compile the source code, you should have the "visual studio 2010" installed , and the "Detours Express 3.0" library which can be downloaded from http://research.microsoft.com/en-us/projects/detours/ .
