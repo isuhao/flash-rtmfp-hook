@@ -13,6 +13,7 @@
 #include "mybuffer.h"
 
 
+
 #pragma comment( lib, "detours.lib" )
 FILE* logfile;
 
@@ -89,7 +90,7 @@ __declspec(dllexport) void __cdecl dummyfunc(void){
 
 }
 
-char  (__fastcall *oldfunc)(void* pthis,int dummy,const unsigned char *key, int keyType, int direction)=(char  (__fastcall *)(void* pthis,int dummy,const unsigned char *key, int keyType, int direction))0x7AE1E1;
+
 
 
 /**
@@ -248,11 +249,6 @@ struct InstanceTimerList
 
 struct Instance;
 
-void  (__fastcall *oldNoSessionProcessInput)(void* pthis,int dummy,SockAddr *addressInfo, int sessionid, int interfaceid)
-	=(void  (__fastcall *)(void* pthis,int dummy,SockAddr *addressInfo, int sessionid, int interfaceid))0x7B2DCE;
-
-void  (__fastcall *oldSessionProcessInput)(void* pthis,int dummy,SockAddr *addressInfo, int sessionid, int interfaceid)
-	=(void  (__fastcall *)(void* pthis,int dummy,SockAddr *addressInfo, int sessionid, int interfaceid))0x7A9357;
 
 struct NoSession
 {
@@ -264,9 +260,7 @@ struct NoSession
 	
 };
 
-char  (__fastcall *oldfillPacketHeader)(void* pthis,int dummy,int a1,int sessionid)=(char  (__fastcall *)(void* pthis,int dummy,int a1,int sessionid))0x0079F539;
-
-
+#include "func_pointers.inc"
 
 struct Instance
 {
@@ -403,8 +397,6 @@ public:
 	 }*/
 };
 
-int (__fastcall  *oldfunc7A17EA)(void* pthis,int dummy,uint8_t *dhpublicnumber, int length, int keyType)=
-	(int (__fastcall  *)(void* pthis,int dummy,uint8_t *dhpublicnumber, int length, int keyType))0x007A17EA;
 
 
 /**
@@ -547,15 +539,6 @@ struct Session
 	}
 
 };
-
-int (__fastcall  *oldfunc5DCFFE)(void* pthis,int dummy,uint8_t *buf, int len, SockAddr* a4)=
-	(int (__fastcall *)(void* pthis,int dummy,uint8_t *buf, int len, SockAddr* a4))0x005DCFFE;
-
-int (__fastcall  *oldfunc5DD07D)(void* pthis,int dummy,uint8_t *buf, int len, SockAddr* a4)=
-	(int (__fastcall *)(void* pthis,int dummy,uint8_t *buf, int len, SockAddr* a4))0x005DD07D;
-
-int (__fastcall  *oldfunc5DD293)(void* pthis,int dummy,uint8_t *buf, int len, int port, int addressFamily)=
-	(int (__fastcall *)(void* pthis,int dummy,uint8_t *buf, int len, int port, int addressFamily))0x005DD293;
 
 
 void logerror(const char* file,long line,const std::string& msg){
