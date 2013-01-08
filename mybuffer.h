@@ -6,9 +6,63 @@
 
 extern int readVarInt64(const uint8_t *beginptr, uint64_t * outvalue, const uint8_t *endptr);
 extern int readVarInt32(const uint8_t *a1, uint32_t* a2, const uint8_t *a3);
-extern int readVarLength(uint8_t *buffer, uint32_t *outVar, uint8_t *bufferEnd);
+extern int readVarLength(const uint8_t *buffer, uint32_t *outVar, const uint8_t *bufferEnd);
+extern char hexchar(uint8_t value);
+extern std::string hexUINT8(uint8_t value);
+extern std::string hexBuffer(const uint8_t* buff,int length);
 
 
+class MyData{
+private:
+	uint8_t* data_;
+	const size_t len_;
+public:
+	MyData():data_(NULL),len_(0){};
+
+	MyData(const uint8_t* data,size_t len):len_(len){
+		if(len>0){
+			this->data_=new uint8_t[len];
+			memcpy(this->data_,data,len);		
+		} else{
+			this->data_=NULL;
+		}
+	}
+
+	MyData(const MyData& obj):len_(obj.len_) {
+		if(len_>0){
+			this->data_=new uint8_t[len_];
+			memcpy(this->data_,obj.data_,obj.len_);		
+		} else{
+			this->data_=NULL;
+		}
+	}
+
+	~MyData() throw() {
+		delete[] data_;
+	}
+
+	uint8_t* data() const {return this->data_;};
+	uint8_t* end() const {return this->data_+this->len_;};
+	size_t size() const {return this->len_;};
+
+	std::string toHexString() const{
+		return hexBuffer(this->data_,len_);
+	}
+
+	static MyData readVarData(const uint8_t *&buffer,const uint8_t *bufferEnd){		
+		if(buffer==bufferEnd)
+			return MyData();
+		if(buffer>bufferEnd)
+			throw std::runtime_error("err");
+		uint32_t size;
+		int l=::readVarLength(buffer,&size,bufferEnd);
+		if(l<=0) return MyData();	
+		buffer+=l;
+		MyData ret=MyData(buffer,size);	
+		buffer+=size;
+		return ret;
+	}
+};
 class MyBuffer {
 public:
 	int vtable;

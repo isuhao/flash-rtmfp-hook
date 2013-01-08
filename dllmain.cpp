@@ -21,11 +21,10 @@ FILE* logfile;
 const char* monthStr[]={"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug","Sep", "Oct", "Nov", "Dec"};
 
 
-
 /**
- * @param type 日志的类型，可以是任何字符串，不含双引号
- * @param data 日志的内容
- */
+* @param type 日志的类型，可以是任何字符串，不含双引号
+* @param data 日志的内容
+*/
 static void logToFile(const std::string& type, const std::string& data)
 {
 	SYSTEMTIME st, lt;
@@ -40,37 +39,134 @@ static void logToFile(const std::string& type, const std::string& data)
 }
 
 /**
- * 打开日志文件
- * @filename
- */
+* 打开日志文件
+* @filename
+*/
 void initLogFile(const char* filename){
 	logfile=fopen(filename,"a+");	
 }
 
 /**
- * 关闭日志文件 
- */
+* 关闭日志文件 
+*/
 void closeLogFile(){	
 	if(logfile!=NULL)
 		fclose(logfile);
 }
 
 
-static char hexchar(uint8_t value){
-	static char str[]="0123456789abcdef";
-	if(value>=16) return '*';
-	return str[value];
+
+struct ChunkName{
+	uint8_t chunkId;
+	const char* name;
+	void (*toStream)(std::ostream& os,const uint8_t* buff,int length);
+};
+
+void printToStream(std::ostream& os,const uint8_t* buff,int length){
+	os<<hexBuffer(buff,length);
 }
 
-static std::string hexBuffer(const uint8_t* buff,int length){
-	std::ostringstream oss;
-	oss<<std::hex<<std::uppercase;
-	oss<<"\"";
-	for(int i=0;i!=length;++i)
-		oss<<hexchar(buff[i]>>4)<<hexchar(buff[i]&0xF);
-	oss<<"\"";
-	return oss.str();
+void printIHelloChunk(std::ostream& oss,const uint8_t* buff,int length){	
+	oss<<"{";
+	const uint8_t* end=buff+length;
+	MyData epdArray=MyData::readVarData(buff,end);
+	if(epdArray.data()){
+		logToFile("debug","hasEPDArray");
+		const uint8_t* rdptr=epdArray.data();
+		const uint8_t* end2=epdArray.end();
+		while(true){
+			MyData epd=MyData::readVarData(rdptr,end2);
+			if(epd.size()==0) break;			
+			int epdType=*epd.data();
+			oss<<" epdType 0x"<<hexUINT8(epdType)<<" epd:"<<std::string(epd.data()+1,epd.end());
+		}
+	}	
+	oss<<" tag:"<<hexBuffer(buff,end-buff);
+	oss<<"}";	
 }
+
+void printRHelloChunk(std::ostream& oss,const uint8_t* buff,int length){	
+	oss<<"{";
+	const uint8_t* end=buff+length;
+	MyData tag=MyData::readVarData(buff,end);
+	MyData cookie=MyData::readVarData(buff,end);
+	oss<<"tag: "<<tag.toHexString()<<" cookie:"<<cookie.toHexString()<<" cert:"<<hexBuffer(buff,end-buff);
+	oss<<"}";	
+}
+
+void printIIKeyingChunk(std::ostream& oss,const uint8_t* buff,int length){	
+	oss<<"{";
+	const uint8_t* end=buff+length;
+	uint32_t sid;
+	memcpy(&sid,buff,sizeof(sid));
+	buff+=sizeof(sid);
+	MyData cookie=MyData::readVarData(buff,end);
+	MyData cert=MyData::readVarData(buff,end);
+	MyData skic=MyData::readVarData(buff,end);
+	int sig=*buff;
+	oss<<"sid:"<<sid<<"cookie: "<<cookie.toHexString()<<" cert:"<<cert.toHexString()<<" skic:"<<skic.toHexString()<<" sig:"<<sig;
+	oss<<"}";	
+}
+
+void printRIKeyingChunk(std::ostream& oss,const uint8_t* buff,int length){	
+	oss<<"{";
+	const uint8_t* end=buff+length;
+	uint32_t sid;
+	memcpy(&sid,buff,sizeof(sid));
+	buff+=sizeof(sid);	
+	MyData skrc=MyData::readVarData(buff,end);
+	int sig=*buff;
+	oss<<"sid:"<<sid<<" skrc:"<<skrc.toHexString()<<" sig:"<<sig;
+	oss<<"}";	
+}
+
+
+void printDataChunk(std::ostream& oss,const uint8_t* buff,int length){	
+	oss<<"{";
+	const uint8_t* end=buff+length;
+	uint8_t flag=*buff++;
+	uint64_t flowID,sequenceNumber,fsnOffset;
+	size_t size;
+	size=readVarInt64(buff,&flowID,end);
+	buff+=size;
+	readVarInt64(buff,&sequenceNumber,end);
+	buff+=size;
+	readVarInt64(buff,&fsnOffset,end);
+	buff+=size;
+	oss<<"flag:0x"<<hexUINT8(flag)<<", flowID:"<<flowID<<",sequenceNumber:"<<sequenceNumber<<",fsnOffset:"<<fsnOffset;
+	if(flag & 0x80){
+		while(true){
+			MyData option=MyData::readVarData(buff,end);
+			if(option.size()==0) break;
+			oss<<" option:"<<option.toHexString();
+		}
+	}
+	oss<<" Data:"<<hexBuffer(buff,end-buff);	
+	oss<<"}";	
+}
+
+ChunkName chunkNames[]={{0x7f,"Fragment"},
+{0x30,"IHello",printIHelloChunk},
+{0xF,"FHello",printToStream},
+{0x70,"RHello",printRHelloChunk},
+{0x71,"Redirect",printToStream},
+{0x79,"CookieChange",printToStream},
+{0x38,"IIKeying",printIIKeyingChunk},
+{0x78,"RIKeying",printRIKeyingChunk},
+{0x1,"Ping",printToStream},
+{0x41,"Pong",printToStream},
+{0x10,"UserData",printDataChunk},
+{0x11,"NextUserData",printToStream},
+{0x50,"AckBitmap",printToStream},
+{0x51,"AckRanges",printToStream},
+{0x18,"BufferProbe",printToStream},
+{0x5E,"FlowException",printToStream},
+{0xC,"CloseRequest",printToStream},
+{0x4C,"CloseAck",printToStream},
+};
+const size_t chunkTypesCount=sizeof(chunkNames)/sizeof(chunkNames[0]);
+static_assert(18 == chunkTypesCount,"chunk types length error");
+
 
 static std::string jsonArray(const uint8_t* buff,int length){
 	std::ostringstream oss;
@@ -94,8 +190,8 @@ __declspec(dllexport) void __cdecl dummyfunc(void){
 
 
 /**
- * 地址信息
- */
+* 地址信息
+*/
 class SockAddr{
 public:
 	int vtable;
@@ -257,10 +353,34 @@ struct NoSession
 	Instance *instance;
 	RtmfpList nosessionItems;
 	void processInput(SockAddr *addressInfo, int sessionid, int interfaceid);
-	
+
 };
 
 #include "func_pointers.inc"
+
+
+
+std::string payloadToString(const uint8_t* data,const size_t len){
+	std::ostringstream oss;
+	const uint8_t* end=data+len;
+	while(data!=end){
+		uint8_t chunkId=*data++;
+		if(chunkId==0x00 || chunkId==0xFF) break;
+		uint32_t chunkLen=*data++;
+		chunkLen=chunkLen<<8 | *data++;		
+		auto end=chunkNames+chunkTypesCount;
+		auto ret=std::find_if(chunkNames,end,[chunkId](const ChunkName& n){return n.chunkId==chunkId;});	
+		if(ret!=end){
+			oss<<" "<<ret->name<<":";
+			ret->toStream(oss,data,chunkLen);			
+		}
+		else 
+			oss<<"unknownChunkType "<<chunkId;
+
+		data+=chunkLen;
+	}
+	return oss.str();
+}
 
 struct Instance
 {
@@ -317,7 +437,7 @@ struct Instance
 	int fillPacketHeader(int a1,int sessionid){		
 		std::ostringstream oss;		
 		oss<<"sessionid:"<<sessionid<<",flags: "<<hexchar(this->flags>>4)<<hexchar(this->flags&0xF)
-		<<",data: "<<hexBuffer((unsigned char*)this->ptr,this->len);		
+			<<",data: "<<payloadToString((unsigned char*)this->ptr,this->len);		
 		std::string msg=oss.str();
 		logToFile("createPacket",msg);
 		int ret=oldfillPacketHeader(this,0,a1,sessionid);
@@ -328,7 +448,7 @@ struct Instance
 
 void NoSession::processInput(SockAddr *addressInfo, int sessionid, int interfaceid){
 	std::ostringstream oss;		
-	oss<<"sessionid:"<<sessionid<<",addr:"<<sockAddrToString(addressInfo)<<",data: "<<hexBuffer((unsigned char*)this->instance->ptr,this->instance->len);		
+	oss<<"sessionid:"<<sessionid<<",addr:"<<sockAddrToString(addressInfo)<<",chunks: "<<payloadToString((uint8_t*)this->instance->ptr,this->instance->len);		
 	std::string msg=oss.str();
 	logToFile("NoSesionProcessInput",msg);
 	oldNoSessionProcessInput(this,0,addressInfo,sessionid,interfaceid);
@@ -336,8 +456,8 @@ void NoSession::processInput(SockAddr *addressInfo, int sessionid, int interface
 
 
 /**
- * CCMEAESContext
- */
+* CCMEAESContext
+*/
 class C00B4F258{
 public:		
 	char newfunc(const unsigned char *key, int keyType, int direction){
@@ -374,8 +494,8 @@ char (__fastcall  *oldfunc7A6807)(void* pthis,int dummy,char *dhpublicnumber, un
 	(char (__fastcall*)(void* pthis,int dummy,char *dhpublicnumber, unsigned int length))0x007A6807;
 
 /**
- * DiffieHellmanContext::DiffieHellmanContext vtable=00B4C8E8
- */
+* DiffieHellmanContext::DiffieHellmanContext vtable=00B4C8E8
+*/
 class DiffieHellmanContext{
 public:
 	int vtable;
@@ -387,21 +507,21 @@ public:
 	MyBuffer b4;
 
 	/*
-	 char func7A6807(char *dhpublicnumber, unsigned int length){
-		int ret=oldfunc7A6807(this,0,dhpublicnumber,length);
-		std::ostringstream oss;
-		oss<<"{type: \"dhinfo\",data: {b4:"<<hexBuffer(this->b4.data,this->b4.length)<<"}}";
-		std::string msg=oss.str();
-		logToFile(msg.c_str());
-		return ret;
-	 }*/
+	char func7A6807(char *dhpublicnumber, unsigned int length){
+	int ret=oldfunc7A6807(this,0,dhpublicnumber,length);
+	std::ostringstream oss;
+	oss<<"{type: \"dhinfo\",data: {b4:"<<hexBuffer(this->b4.data,this->b4.length)<<"}}";
+	std::string msg=oss.str();
+	logToFile(msg.c_str());
+	return ret;
+	}*/
 };
 
 
 
 /**
- * RTMFP::BasicCryptoKey vtable=00B4C820
- */
+* RTMFP::BasicCryptoKey vtable=00B4C820
+*/
 class BasicCryptoKey{
 public:
 	int vtable;
@@ -425,21 +545,21 @@ public:
 	Data *responderNonce;
 	uint8_t nearNonce[32];
 	uint8_t farNonce[32];
-	
+
 
 	char func007A17EA(uint8_t *dhpublicnumber, int length, int keyType){
 		std::ostringstream oss;
 		oss<<"dhpublicnumber:"<<hexBuffer(dhpublicnumber,length)
-		<<",initiatorCert:"<<hexBuffer(this->initiatorNonce->data,this->initiatorNonce->length)
-		<<",responderCert:"<<hexBuffer(this->responderNonce->data,this->responderNonce->length)
-		<<",dhprime:"<<hexBuffer(this->info->b1.data,this->info->b1.length)
-		<<",dhprivatekey:"<<hexBuffer(this->info->b2.data,this->info->b2.length);
+			<<",skic:"<<hexBuffer(this->initiatorNonce->data,this->initiatorNonce->length)
+			<<",skrc:"<<hexBuffer(this->responderNonce->data,this->responderNonce->length)
+			<<",dhprime:"<<hexBuffer(this->info->b1.data,this->info->b1.length)
+			<<",dhprivatekey:"<<hexBuffer(this->info->b2.data,this->info->b2.length);
 		char ret=oldfunc7A17EA(this,0,dhpublicnumber,length,keyType);
 		oss<<",farNonce:"<<hexBuffer(this->farNonce,sizeof(this->farNonce))
 			<<",nearNonce:"<<hexBuffer(this->nearNonce,sizeof(this->nearNonce));
 		std::string msg=oss.str();
 		logToFile("secinfo",msg.c_str());
-		
+
 		return ret;
 	}
 };
@@ -532,7 +652,7 @@ struct Session
 	int vend;
 	void Session::processInput(SockAddr *addressInfo, int sessionid, int interfaceid){
 		std::ostringstream oss;		
-		oss<<"sessionid:"<<sessionid<<",addr:"<<sockAddrToString(addressInfo)<<",data: "<<hexBuffer((unsigned char*)this->instance->ptr,this->instance->len);		
+		oss<<"sessionid:"<<sessionid<<",addr:"<<sockAddrToString(addressInfo)<<",data: "<<payloadToString((unsigned char*)this->instance->ptr,this->instance->len);		
 		std::string msg=oss.str();
 		logToFile("SesionProcessInput",msg);
 		oldSessionProcessInput(this,0,addressInfo,sessionid,interfaceid);
@@ -551,8 +671,8 @@ void logerror(const char* file,long line,const std::string& msg){
 #define LOG_ERROR(msg) {logerror(__FILE__,__LINE__,msg);}
 
 /**
- * 网络管理器。它的构造函数会调用WSAStartup
- */
+* 网络管理器。它的构造函数会调用WSAStartup
+*/
 class C00B0C408{
 	int vtable;
 	int ref;
@@ -593,7 +713,7 @@ static void doRegister(){
 
 	//记录key
 	DetourAttach( &(PVOID &)oldfunc,(PVOID)(&(PVOID&) C00B4F258::newfunc));
-	
+
 	//计算AES key
 	DetourAttach( &(PVOID &)oldfunc7A17EA,(PVOID)(&(PVOID&) BasicCryptoKey::func007A17EA));	
 	//发送局域网UDP广播
@@ -606,7 +726,7 @@ static void doRegister(){
 	DetourAttach( &(PVOID &)oldfillPacketHeader,(PVOID)(&(PVOID&) Instance::fillPacketHeader));	
 	DetourAttach( &(PVOID &)oldNoSessionProcessInput,(PVOID)(&(PVOID&) NoSession::processInput));	
 	DetourAttach( &(PVOID &)oldSessionProcessInput,(PVOID)(&(PVOID&) Session::processInput));	
-	
+
 	error=DetourTransactionCommit(); 
 	if(error==NO_ERROR){
 		logToFile("begin","");
@@ -631,11 +751,11 @@ static void doUnRegister(){
 }
 
 BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-					 )
+	DWORD  ul_reason_for_call,
+	LPVOID lpReserved
+	)
 {	
-	
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:

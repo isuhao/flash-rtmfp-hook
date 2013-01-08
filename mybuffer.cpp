@@ -1,5 +1,38 @@
 ﻿#include "mybuffer.h"
 
+#include <sstream>
+
+/**
+ * 把value转换成一个16进制的字符。
+ * \param value value属于[0,15]
+ */
+ char hexchar(uint8_t value){
+	static char str[]="0123456789abcdef";
+	if(value>=16) return '*';
+	return str[value];
+}
+
+ std::string hexUINT8(uint8_t value){
+	 char buff[3];
+	 buff[0]=hexchar(value >> 4);
+	 buff[1]=hexchar(value & 0xF);
+	 buff[2]='\0';
+	 return buff;
+ }
+
+/**
+ * \param length 可以小于等于0。此时什么都不输出
+ */
+ std::string hexBuffer(const uint8_t* buff,int length){
+	std::ostringstream oss;
+	oss<<std::hex<<std::uppercase;
+	oss<<"\"";
+	for(int i=0;i!=length;++i)
+		oss<<hexchar(buff[i]>>4)<<hexchar(buff[i]&0xF);
+	oss<<"\"";
+	return oss.str();
+}
+
 
 size_t  write7bitInt(uint64_t value, void *dest){
 	uint64_t v2; 
@@ -28,9 +61,9 @@ size_t  write7bitInt(uint64_t value, void *dest){
 }
 
 // 往outVar中写入读到的值。return读了多少个字节
-int  readVarLength(uint8_t *buffer, uint32_t *outVar, uint8_t *bufferEnd)
+int  readVarLength(const uint8_t *buffer, uint32_t *outVar, const uint8_t *bufferEnd)
 {
-	uint8_t *v3; 
+	const uint8_t *v3; 
 	int result; 
 	uint32_t value;
 	v3 = bufferEnd;
