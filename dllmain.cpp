@@ -78,7 +78,11 @@ void printIHelloChunk(std::ostream& oss,const uint8_t* buff,int length){
 			MyData epd=MyData::readVarData(rdptr,end2);
 			if(epd.size()==0) break;			
 			int epdType=*epd.data();
-			oss<<" epdType 0x"<<hexUINT8(epdType)<<" epd:"<<std::string(epd.data()+1,epd.end());
+			oss<<" epdType 0x"<<hexUINT8(epdType);
+			if(epdType=0x0A)
+				oss<<" epd:"<<std::string(epd.data()+1,epd.end());
+			else
+				oss<<" epd:"<<hexBuffer(epd.data()+1,epd.size()-1);
 		}
 	}	
 	oss<<" tag:"<<hexBuffer(buff,end-buff);
