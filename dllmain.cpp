@@ -463,8 +463,9 @@ void NoSession::processInput(SockAddr *addressInfo, int sessionid, int interface
 * CCMEAESContext
 */
 class C00B4F258{
-public:		
-	char newfunc(const unsigned char *key, int keyType, int direction){
+public:
+	//construct a key. 
+	char func007AE1E1(const unsigned char *key, int keyType, int direction){
 		size_t keylength;
 		if ( keyType )
 		{
@@ -474,8 +475,10 @@ public:
 			}
 			else
 			{
-				if ( keyType != 2 )
+				if (keyType != 2){
+					//unexpected key type!!!
 					return 0;
+				}
 				keylength = 256;
 			}
 		}
@@ -487,15 +490,15 @@ public:
 		std::ostringstream oss;
 		oss<<"key: "<<hexBuffer(key,keylength)<<",direction:"<<direction;
 		logToFile("keyinfo",oss.str());	
-		char ret=oldfunc(this,0,key,keyType,direction);		
+		char ret = oldfunc007AE1E1(this, 0, key, keyType, direction);
 		return ret;
 	}
 };
 
 
 
-char (__fastcall  *oldfunc7A6807)(void* pthis,int dummy,char *dhpublicnumber, unsigned int length)=
-	(char (__fastcall*)(void* pthis,int dummy,char *dhpublicnumber, unsigned int length))0x007A6807;
+/*char (__fastcall  *oldfunc7A6807)(void* pthis,int dummy,char *dhpublicnumber, unsigned int length)=
+	(char (__fastcall*)(void* pthis,int dummy,char *dhpublicnumber, unsigned int length))0x007A6807;*/
 
 /**
 * DiffieHellmanContext::DiffieHellmanContext vtable=00B4C8E8
@@ -654,7 +657,8 @@ struct Session
 	char f3;
 	char gap_523[1];
 	int vend;
-	void Session::processInput(SockAddr *addressInfo, int sessionid, int interfaceid){
+
+	void processInput(SockAddr *addressInfo, int sessionid, int interfaceid){
 		std::ostringstream oss;		
 		oss<<"sessionid:"<<sessionid<<",addr:"<<sockAddrToString(addressInfo)<<",data: "<<payloadToString((unsigned char*)this->instance->ptr,this->instance->len);		
 		std::string msg=oss.str();
@@ -708,28 +712,42 @@ public:
 };
 
 
+template <typename T>
+union CONV{	
+	void* p;
+	T orig;
+};
 
+template <typename T>
+static void* toPVOID(T t){
+	CONV<decltype(t)> c;
+	c.orig = t;
+	return c.p;
+}
 
 static void doRegister(){
 	LONG error;
 	DetourTransactionBegin();
 	DetourUpdateThread( GetCurrentThread() );
+	
+	
+
 
 	//记录key
-	DetourAttach( &(PVOID &)oldfunc,(PVOID)(&(PVOID&) C00B4F258::newfunc));
+	DetourAttach(&(PVOID &)oldfunc007AE1E1, toPVOID(&C00B4F258::func007AE1E1));
 
 	//计算AES key
-	DetourAttach( &(PVOID &)oldfunc7A17EA,(PVOID)(&(PVOID&) BasicCryptoKey::func007A17EA));	
+	DetourAttach(&(PVOID &)oldfunc7A17EA, toPVOID(&BasicCryptoKey::func007A17EA));
 	//发送局域网UDP广播
-	DetourAttach( &(PVOID &)oldfunc5DD293,(PVOID)(&(PVOID&) C00B0C408::func5DD293));	
+	DetourAttach(&(PVOID &)oldfunc5DD293, toPVOID(&C00B0C408::func5DD293));
 	//收到UDP包
-	DetourAttach( &(PVOID &)oldfunc5DCFFE,(PVOID)(&(PVOID&) C00B0C408::func5DCFFE));	
+	DetourAttach(&(PVOID &)oldfunc5DCFFE, toPVOID(&C00B0C408::func5DCFFE));
 	//发送UDP包
-	DetourAttach( &(PVOID &)oldfunc5DD07D,(PVOID)(&(PVOID&) C00B0C408::func5DD07D));	
+	DetourAttach(&(PVOID &)oldfunc5DD07D, toPVOID(&C00B0C408::func5DD07D));
 
-	DetourAttach( &(PVOID &)oldfillPacketHeader,(PVOID)(&(PVOID&) Instance::fillPacketHeader));	
-	DetourAttach( &(PVOID &)oldNoSessionProcessInput,(PVOID)(&(PVOID&) NoSession::processInput));	
-	DetourAttach( &(PVOID &)oldSessionProcessInput,(PVOID)(&(PVOID&) Session::processInput));	
+	DetourAttach(&(PVOID &)oldfillPacketHeader, toPVOID(&Instance::fillPacketHeader));
+	DetourAttach(&(PVOID &)oldNoSessionProcessInput, toPVOID(&NoSession::processInput));
+	DetourAttach(&(PVOID &)oldSessionProcessInput, toPVOID(&Session::processInput));
 
 	error=DetourTransactionCommit(); 
 	if(error==NO_ERROR){
@@ -742,14 +760,14 @@ static void doUnRegister(){
 	DetourTransactionBegin();
 	DetourUpdateThread( GetCurrentThread() );
 	//DetourDetach( &(PVOID &)oldfunc7A6807,(PVOID)(&(PVOID&) DiffieHellmanContext::func7A6807));
-	DetourDetach( &(PVOID &)oldfunc7A17EA,(PVOID)(&(PVOID&) BasicCryptoKey::func007A17EA));	
-	DetourDetach( &(PVOID &)oldfunc5DD293,(PVOID)(&(PVOID&) C00B0C408::func5DD293));	
-	DetourDetach( &(PVOID &)oldfunc5DCFFE,(PVOID)(&(PVOID&) C00B0C408::func5DCFFE));	
-	DetourDetach( &(PVOID &)oldfunc5DD07D,(PVOID)(&(PVOID&) C00B0C408::func5DD07D));	
-	DetourDetach( &(PVOID &)oldfunc,(PVOID)(&(PVOID&) C00B4F258::newfunc));
-	DetourDetach( &(PVOID &)oldfillPacketHeader,(PVOID)(&(PVOID&) Instance::fillPacketHeader));	
-	DetourDetach( &(PVOID &)oldNoSessionProcessInput,(PVOID)(&(PVOID&) NoSession::processInput));
-	DetourDetach( &(PVOID &)oldSessionProcessInput,(PVOID)(&(PVOID&) Session::processInput));	
+	DetourDetach(&(PVOID &)oldfunc7A17EA, toPVOID(&BasicCryptoKey::func007A17EA));
+	DetourDetach(&(PVOID &)oldfunc5DD293, toPVOID(&C00B0C408::func5DD293));
+	DetourDetach(&(PVOID &)oldfunc5DCFFE, toPVOID(&C00B0C408::func5DCFFE));
+	DetourDetach(&(PVOID &)oldfunc5DD07D, toPVOID(&C00B0C408::func5DD07D));
+	DetourDetach(&(PVOID &)oldfunc007AE1E1, toPVOID(&C00B4F258::func007AE1E1));
+	DetourDetach(&(PVOID &)oldfillPacketHeader, toPVOID(&Instance::fillPacketHeader));
+	DetourDetach(&(PVOID &)oldNoSessionProcessInput, toPVOID(&NoSession::processInput));
+	DetourDetach(&(PVOID &)oldSessionProcessInput, toPVOID(&Session::processInput));
 	error=DetourTransactionCommit(); 
 	logToFile("end","");
 }
