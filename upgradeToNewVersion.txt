@@ -1,41 +1,41 @@
-Ã¿µ±Flash·¢²¼Ò»¸öĞÂ°æ±¾£¬º¯ÊıµØÖ·¾Í±äÁË¡£ÄÇÃ´ÈçºÎÕÒµ½ĞÂµØÖ·ÄØ£¿
-×ĞÏ¸ÔÄ¶ÁÏÂÃæËµÃ÷£¬ÔËÆøºÃµÄ»°£¬10·ÖÖÓ¾ÍÄÜÈ«²¿ÕÒµ½£¡
+æ¯å½“Flashå‘å¸ƒä¸€ä¸ªæ–°ç‰ˆæœ¬ï¼Œå‡½æ•°åœ°å€å°±å˜äº†ã€‚é‚£ä¹ˆå¦‚ä½•æ‰¾åˆ°æ–°åœ°å€å‘¢ï¼Ÿ
+ä»”ç»†é˜…è¯»ä¸‹é¢è¯´æ˜ï¼Œè¿æ°”å¥½çš„è¯ï¼Œ10åˆ†é’Ÿå°±èƒ½å…¨éƒ¨æ‰¾åˆ°ï¼
 
-1. ÏÂÔØĞÂµÄflash player standalone debug win32°æ±¾£¬²¢¸ù¾İÕâÆªÎÄÕÂhttp://www.sunchangming.com/blog/post/4148.html½ûÓÃASLR¡£
+1. ä¸‹è½½æ–°çš„flash player standalone debug win32ç‰ˆæœ¬ï¼Œå¹¶æ ¹æ®è¿™ç¯‡æ–‡ç« http://www.sunchangming.com/blog/post/4148.htmlç¦ç”¨ASLRã€‚
 
-2. ÓÃIDAÔØÈëĞÂµÄexe¡£
-Ê×ÏÈÕÒµ½"Adobe Systems 02"Õâ¸ö×Ö·û´®¡£°ÑËüµÄÃû×Ö¸Ä³ÉadobeSystem02
-ÒıÓÃadobeSystem02µÄfunctionÓ¦¸ÃÖ»ÓĞÒ»¸ö¡£ ÔÚ11.2 r202°æ±¾ÖĞËüµÄµØÖ·ÊÇ 007A1E66 £¬11.9°æ±¾ÖĞËüµÄµØÖ·ÊÇ 0091F7AA ¡£Ëã³öÕâÁ½¸öµØÖ·µÄ²îÖµ¡£
+2. ç”¨IDAè½½å…¥æ–°çš„exeã€‚
+é¦–å…ˆæ‰¾åˆ°"Adobe Systems 02"è¿™ä¸ªå­—ç¬¦ä¸²ã€‚æŠŠå®ƒçš„åå­—æ”¹æˆadobeSystem02
+å¼•ç”¨adobeSystem02çš„functionåº”è¯¥åªæœ‰ä¸€ä¸ªã€‚ åœ¨11.2 r202ç‰ˆæœ¬ä¸­å®ƒçš„åœ°å€æ˜¯ 007A1E66 ï¼Œ11.9ç‰ˆæœ¬ä¸­å®ƒçš„åœ°å€æ˜¯ 0091F7AA ã€‚ç®—å‡ºè¿™ä¸¤ä¸ªåœ°å€çš„å·®å€¼ã€‚
 
-°ÑÕâ¸ö²îÖµ¼ÓÔÚ¾ÉµØÖ·ÉÏ£¬´Ó¶øµÃÖªĞÂµØÖ·´óÖÂÓ¦¸ÃÊÇ¶àÉÙ¡£È»ºóÈâÑÛÉÔÎ¢¿´¿´£¬¾ÍÄÜÕÒ³öÒÔÏÂ¼¸¸öº¯ÊıµÄĞÂµØÖ·ÁË¡£
+æŠŠè¿™ä¸ªå·®å€¼åŠ åœ¨æ—§åœ°å€ä¸Šï¼Œä»è€Œå¾—çŸ¥æ–°åœ°å€å¤§è‡´åº”è¯¥æ˜¯å¤šå°‘ã€‚ç„¶åè‚‰çœ¼ç¨å¾®çœ‹çœ‹ï¼Œå°±èƒ½æ‰¾å‡ºä»¥ä¸‹å‡ ä¸ªå‡½æ•°çš„æ–°åœ°å€äº†ã€‚
 oldfunc007AE1E1 007AE1E1 -> 0092BB2C
 oldfunc007A17EA 007A17EA -> 0091F12E
 oldfillPacketHeader 0079F539 -> 0091CE80
 oldNoSessionProcessInput 007B2DCE ->0093072A
 oldSessionProcessInput 007A9357 -> 00926C82
 
-»¹ÓĞ3¸öº¯Êı£¬´ÓimportsÖĞÕÒ¡£
-ÔÚIDAÖĞ´ÓimportsÖĞÕÒµ½µ÷ÓÃrecvfromµÄº¯Êı£¬ÕÒµ½µ÷ÓÃËüµÄº¯Êı£¬Ó¦¸ÃÖ»ÓĞÒ»¸ö¡£
+è¿˜æœ‰3ä¸ªå‡½æ•°ï¼Œä»importsä¸­æ‰¾ã€‚
+åœ¨IDAä¸­ä»importsä¸­æ‰¾åˆ°è°ƒç”¨recvfromçš„å‡½æ•°ï¼Œæ‰¾åˆ°è°ƒç”¨å®ƒçš„å‡½æ•°ï¼Œåº”è¯¥åªæœ‰ä¸€ä¸ªã€‚
 oldfunc5DCFFE -> 006435F8
 
-´ÓimportsÖĞÕÒµ½µ÷ÓÃsendtoµÄº¯Êı£¬µÚÒ»¸ö
+ä»importsä¸­æ‰¾åˆ°è°ƒç”¨sendtoçš„å‡½æ•°ï¼Œç¬¬ä¸€ä¸ª
 oldfunc5DD07D -> 00643677
-µÚ¶ş¸ö
+ç¬¬äºŒä¸ª
 oldfunc5DD293 -> 0064388D
 
 ---------------------
-Èç¹ûÒÔÉÏÊ§°Ü£¬°´ÕÕÏÂÃæµÄ²½ÖèÊÖ¶¯ÕÒ£º
-ÒıÓÃadobeSystem02µÄfunctionµÄfunctionÓ¦¸ÃÓĞ3¸ö¡£Ìø×ªµ½×îÏÂÃæÒ»¸ö£¬ÖØÃüÃûÎªdecryptPacket
-ÒıÓÃdecryptPacketµÄµØ·½Ö»ÓĞÒ»¸ö£¬ÊÇÒ»¸övtable£¬ÊôÓÚÀàBasicCryptoAdapter¡£ÔÚÕâ¸övtable¿ªÊ¼µÄµØ·½£¬ÕÒµ½ÒıÓÃËüµÄº¯Êı£¬ÖØÃüÃûÎªBasicCryptoAdapter::BasicCryptoAdapter
+å¦‚æœä»¥ä¸Šå¤±è´¥ï¼ŒæŒ‰ç…§ä¸‹é¢çš„æ­¥éª¤æ‰‹åŠ¨æ‰¾ï¼š
+å¼•ç”¨adobeSystem02çš„functionçš„functionåº”è¯¥æœ‰3ä¸ªã€‚è·³è½¬åˆ°æœ€ä¸‹é¢ä¸€ä¸ªï¼Œé‡å‘½åä¸ºdecryptPacket
+å¼•ç”¨decryptPacketçš„åœ°æ–¹åªæœ‰ä¸€ä¸ªï¼Œæ˜¯ä¸€ä¸ªvtableï¼Œå±äºç±»BasicCryptoAdapterã€‚åœ¨è¿™ä¸ªvtableå¼€å§‹çš„åœ°æ–¹ï¼Œæ‰¾åˆ°å¼•ç”¨å®ƒçš„å‡½æ•°ï¼Œé‡å‘½åä¸ºBasicCryptoAdapter::BasicCryptoAdapter
 
-BasicCryptoAdapterµÄvtableµÄµÚÈı¸öº¯Êı£¬½øÈ¥ÄÜÕÒµ½calcAESKeyµÄÒıÓÃ¡£
+BasicCryptoAdapterçš„vtableçš„ç¬¬ä¸‰ä¸ªå‡½æ•°ï¼Œè¿›å»èƒ½æ‰¾åˆ°calcAESKeyçš„å¼•ç”¨ã€‚
 oldfunc7A17EA -> 0091F12E
 
-´ÓdecryptPacketÏÂÃæ£¬ÕÒµ½-1.414¡£ËüÉÏÃæÕâ¸övtable¾ÍÊÇISession¡£
-ÔÙÍùÏÂ¾ÍÄÜÕÒµ½SessionµÄvtable
-´Ó¶øÈ·¶¨Session_SendChunkÕâ¸öº¯ÊıµÄÎ»ÖÃ
+ä»decryptPacketä¸‹é¢ï¼Œæ‰¾åˆ°-1.414ã€‚å®ƒä¸Šé¢è¿™ä¸ªvtableå°±æ˜¯ISessionã€‚
+å†å¾€ä¸‹å°±èƒ½æ‰¾åˆ°Sessionçš„vtable
+ä»è€Œç¡®å®šSession_SendChunkè¿™ä¸ªå‡½æ•°çš„ä½ç½®
 
-3.±àÒërelease°æ±¾µÄdll£¬ÓÃsetdll·¢²¼
+3.ç¼–è¯‘releaseç‰ˆæœ¬çš„dllï¼Œç”¨setdllå‘å¸ƒ
 copy /Y D:\flashplayer3\flashplayer_11_sa_debug.exe .
 copy /Y D:\github\flash-rtmfp-hook\Release\flashhook.dll .
 "C:\Program Files (x86)\Detours Express 3.0\bin.X86\setdll.exe" /d:flashhook.dll flashplayer_11_sa_debug.exe
