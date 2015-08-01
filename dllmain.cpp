@@ -18,7 +18,7 @@
 FILE* logfile;
 
 /** 12个月份的缩写 */
-const char* monthStr[]={"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug","Sep", "Oct", "Nov", "Dec"};
+const char* monthStr[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
 
 /**
@@ -28,13 +28,13 @@ const char* monthStr[]={"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug","
 static void logToFile(const std::string& type, const std::string& data)
 {
 	SYSTEMTIME st, lt;
-	GetSystemTime(&st);	
-	GetLocalTime(&lt);	
-	std::ostringstream oss;	
-	oss<<monthStr[lt.wMonth-1]<<" "<<lt.wDay<<", "<<lt.wYear<<" "<<lt.wHour<<":"<<lt.wMinute<<":"<<lt.wSecond<<"."<<lt.wMilliseconds;
-	oss<<" "<<type<<" "<<data<<"\n";
-	std::string msg=oss.str();
-	fwrite(msg.c_str(),1,msg.length(),logfile);
+	GetSystemTime(&st);
+	GetLocalTime(&lt);
+	std::ostringstream oss;
+	oss << monthStr[lt.wMonth - 1] << " " << lt.wDay << ", " << lt.wYear << " " << lt.wHour << ":" << lt.wMinute << ":" << lt.wSecond << "." << lt.wMilliseconds;
+	oss << " " << type << " " << data << "\n";
+	std::string msg = oss.str();
+	fwrite(msg.c_str(), 1, msg.length(), logfile);
 	fflush(logfile);
 }
 
@@ -43,144 +43,182 @@ static void logToFile(const std::string& type, const std::string& data)
 * @filename
 */
 void initLogFile(const char* filename){
-	logfile=fopen(filename,"a+");	
+	logfile = fopen(filename, "a+");
 }
 
 /**
-* 关闭日志文件 
+* 关闭日志文件
 */
-void closeLogFile(){	
-	if(logfile!=NULL)
+void closeLogFile(){
+	if (logfile != NULL)
 		fclose(logfile);
 }
 
+class Option{
+	uint64_t key_;
+	MyData data_;
+public:
+	Option(uint64_t key, const uint8_t* data, size_t len) :key_(key), data_(data, len){}
 
+	std::string toString(){
+		std::ostringstream oss;
+		oss << "{key=0x" <<std::hex<< key_ <<std::dec<< ",value=" << data_.toHexString() << "}";
+		return oss.str();
+	}
+
+	static Option* readOption(const uint8_t*& buff, const uint8_t* end){
+		uint32_t optionLen;
+		int l = ::readVarLength(buff, &optionLen, end);
+		if (l <= 0 || !optionLen) return NULL;
+		buff += l;
+
+		const uint8_t* optionEnd = buff + optionLen;
+		uint64_t key = 0;
+		int size = readVarInt64(buff, &key, optionEnd);
+		const uint8_t* valueBegin = buff + size;
+		buff = optionEnd;
+		return new Option(key, valueBegin, optionEnd - valueBegin);
+	}
+};
 
 struct ChunkName{
 	uint8_t chunkId;
 	const char* name;
-	void (*toStream)(std::ostream& os,const uint8_t* buff,int length);
+	void(*toStream)(std::ostream& os, const uint8_t* buff, int length);
 };
 
-void printToStream(std::ostream& os,const uint8_t* buff,int length){
-	os<<hexBuffer(buff,length);
+void printToStream(std::ostream& os, const uint8_t* buff, int length){
+	os << hexBuffer(buff, length);
 }
 
-void printIHelloChunk(std::ostream& oss,const uint8_t* buff,int length){	
-	oss<<"{";
-	const uint8_t* end=buff+length;
-	MyData epdArray=MyData::readVarData(buff,end);
-	if(epdArray.data()){
-		logToFile("debug","hasEPDArray");
-		const uint8_t* rdptr=epdArray.data();
-		const uint8_t* end2=epdArray.end();
-		while(true){
-			MyData epd=MyData::readVarData(rdptr,end2);
-			if(epd.size()==0) break;			
-			int epdType=*epd.data();
-			oss<<" epdType 0x"<<hexUINT8(epdType);
-			if(epdType=0x0A)
-				oss<<" epd:"<<std::string(epd.data()+1,epd.end());
+void printIHelloChunk(std::ostream& oss, const uint8_t* buff, int length){
+	oss << "{";
+	const uint8_t* end = buff + length;
+	MyData epdArray = MyData::readVarData(buff, end);
+	if (epdArray.data()){
+		//logToFile("debug","hasEPDArray");
+		const uint8_t* rdptr = epdArray.data();
+		const uint8_t* end2 = epdArray.end();
+		while (true){
+			MyData epd = MyData::readVarData(rdptr, end2);
+			if (epd.size() == 0) break;
+			int epdType = *epd.data();
+			oss << " epdType 0x" << hexUINT8(epdType);
+			if (epdType = 0x0A)
+				oss << " epd:" << std::string(epd.data() + 1, epd.end());
 			else
-				oss<<" epd:"<<hexBuffer(epd.data()+1,epd.size()-1);
-		}
-	}	
-	oss<<" tag:"<<hexBuffer(buff,end-buff);
-	oss<<"}";	
-}
-
-void printRHelloChunk(std::ostream& oss,const uint8_t* buff,int length){	
-	oss<<"{";
-	const uint8_t* end=buff+length;
-	MyData tag=MyData::readVarData(buff,end);
-	MyData cookie=MyData::readVarData(buff,end);
-	oss<<"tag: "<<tag.toHexString()<<" cookie:"<<cookie.toHexString()<<" cert:"<<hexBuffer(buff,end-buff);
-	oss<<"}";	
-}
-
-void printIIKeyingChunk(std::ostream& oss,const uint8_t* buff,int length){	
-	oss<<"{";
-	const uint8_t* end=buff+length;
-	uint32_t sid;
-	memcpy(&sid,buff,sizeof(sid));
-	buff+=sizeof(sid);
-	MyData cookie=MyData::readVarData(buff,end);
-	MyData cert=MyData::readVarData(buff,end);
-	MyData skic=MyData::readVarData(buff,end);
-	int sig=*buff;
-	oss<<"sid:"<<sid<<"cookie: "<<cookie.toHexString()<<" cert:"<<cert.toHexString()<<" skic:"<<skic.toHexString()<<" sig:"<<sig;
-	oss<<"}";	
-}
-
-void printRIKeyingChunk(std::ostream& oss,const uint8_t* buff,int length){	
-	oss<<"{";
-	const uint8_t* end=buff+length;
-	uint32_t sid;
-	memcpy(&sid,buff,sizeof(sid));
-	buff+=sizeof(sid);	
-	MyData skrc=MyData::readVarData(buff,end);
-	int sig=*buff;
-	oss<<"sid:"<<sid<<" skrc:"<<skrc.toHexString()<<" sig:"<<sig;
-	oss<<"}";	
-}
-
-
-void printDataChunk(std::ostream& oss,const uint8_t* buff,int length){	
-	oss<<"{";
-	const uint8_t* end=buff+length;
-	uint8_t flag=*buff++;
-	uint64_t flowID,sequenceNumber,fsnOffset;
-	size_t size;
-	size=readVarInt64(buff,&flowID,end);
-	buff+=size;
-	readVarInt64(buff,&sequenceNumber,end);
-	buff+=size;
-	readVarInt64(buff,&fsnOffset,end);
-	buff+=size;
-	oss<<"flag:0x"<<hexUINT8(flag)<<", flowID:"<<flowID<<",sequenceNumber:"<<sequenceNumber<<",fsnOffset:"<<fsnOffset;
-	if(flag & 0x80){
-		while(true){
-			MyData option=MyData::readVarData(buff,end);
-			if(option.size()==0) break;
-			oss<<" option:"<<option.toHexString();
+				oss << " epd:" << hexBuffer(epd.data() + 1, epd.size() - 1);
 		}
 	}
-	oss<<" Data:"<<hexBuffer(buff,end-buff);	
-	oss<<"}";	
+	oss << " tag:" << hexBuffer(buff, end - buff);
+	oss << "}";
 }
 
-ChunkName chunkNames[]={{0x7f,"Fragment"},
-{0x30,"IHello",printIHelloChunk},
-{0xF,"FHello",printToStream},
-{0x70,"RHello",printRHelloChunk},
-{0x71,"Redirect",printToStream},
-{0x79,"CookieChange",printToStream},
-{0x38,"IIKeying",printIIKeyingChunk},
-{0x78,"RIKeying",printRIKeyingChunk},
-{0x1,"Ping",printToStream},
-{0x41,"Pong",printToStream},
-{0x10,"UserData",printDataChunk},
-{0x11,"NextUserData",printToStream},
-{0x50,"AckBitmap",printToStream},
-{0x51,"AckRanges",printToStream},
-{0x18,"BufferProbe",printToStream},
-{0x5E,"FlowException",printToStream},
-{0xC,"CloseRequest",printToStream},
-{0x4C,"CloseAck",printToStream},
+void printRHelloChunk(std::ostream& oss, const uint8_t* buff, int length){
+	oss << "{";
+	const uint8_t* end = buff + length;
+	MyData tag = MyData::readVarData(buff, end);
+	MyData cookie = MyData::readVarData(buff, end);
+	oss << "tag: " << tag.toHexString() << " cookie:" << cookie.toHexString() << " cert:" << hexBuffer(buff, end - buff);
+	oss << "}";
+}
+
+std::string printCert(const MyData& data){
+	std::ostringstream oss;	
+	Option* p = NULL;
+	const uint8_t* buff = data.data();
+	const uint8_t* end = data.end();	
+	while (p = Option::readOption(buff, end)){
+		oss << " option:" << p->toString();
+		delete p;
+	}
+	return oss.str();
+}
+
+void printIIKeyingChunk(std::ostream& oss, const uint8_t* buff, int length){
+	oss << "{";
+	const uint8_t* end = buff + length;
+	uint32_t sid;
+	memcpy(&sid, buff, sizeof(sid));
+	buff += sizeof(sid);
+	MyData cookie = MyData::readVarData(buff, end);
+	MyData cert = MyData::readVarData(buff, end);
+	MyData skic = MyData::readVarData(buff, end);
+	int sig = *buff;
+	oss << "sid:" << sid << " cookie: " << cookie.toHexString() << " cert:[" << printCert(cert) << "] skic:[" << printCert(skic) << "] sig:" << sig;
+	oss << "}";
+}
+
+void printRIKeyingChunk(std::ostream& oss, const uint8_t* buff, int length){
+	oss << "{";
+	const uint8_t* end = buff + length;
+	uint32_t sid;
+	memcpy(&sid, buff, sizeof(sid));
+	buff += sizeof(sid);
+	MyData skrc = MyData::readVarData(buff, end);
+	int sig = *buff;
+	oss << "sid:" << sid << " skrc:" << skrc.toHexString() << " sig:" << sig;
+	oss << "}";
+}
+
+
+
+void printDataChunk(std::ostream& oss, const uint8_t* buff, int length){
+	oss << "{";
+	const uint8_t* end = buff + length;
+	uint8_t flag = *buff++;
+	uint64_t flowID, sequenceNumber, fsnOffset;
+	int size;
+	size = readVarInt64(buff, &flowID, end);
+	buff += size;
+	size = readVarInt64(buff, &sequenceNumber, end);
+	buff += size;
+	size = readVarInt64(buff, &fsnOffset, end);
+	buff += size;
+	oss << "flag:0x" << hexUINT8(flag) << ", flowID:" << flowID << ",sequenceNumber:" << sequenceNumber << ",fsnOffset:" << fsnOffset;
+	if (flag & 0x80){ //has options		
+		Option* p = NULL;
+		while (p = Option::readOption(buff,end)){
+			oss << " option:" << p->toString();
+			delete p;
+		}
+	}
+	oss << " Data:" << hexBuffer(buff, end - buff);
+	oss << "}";
+}
+
+ChunkName chunkNames[] = { { 0x7f, "Fragment" },
+{ 0x30, "IHello", printIHelloChunk },
+{ 0xF, "FHello", printToStream },
+{ 0x70, "RHello", printRHelloChunk },
+{ 0x71, "Redirect", printToStream },
+{ 0x79, "CookieChange", printToStream },
+{ 0x38, "IIKeying", printIIKeyingChunk },
+{ 0x78, "RIKeying", printRIKeyingChunk },
+{ 0x1, "Ping", printToStream },
+{ 0x41, "Pong", printToStream },
+{ 0x10, "UserData", printDataChunk },
+{ 0x11, "NextUserData", printToStream },
+{ 0x50, "AckBitmap", printToStream },
+{ 0x51, "AckRanges", printToStream },
+{ 0x18, "BufferProbe", printToStream },
+{ 0x5E, "FlowException", printToStream },
+{ 0xC, "CloseRequest", printToStream },
+{ 0x4C, "CloseAck", printToStream },
 };
-const size_t chunkTypesCount=sizeof(chunkNames)/sizeof(chunkNames[0]);
-static_assert(18 == chunkTypesCount,"chunk types length error");
+const size_t chunkTypesCount = sizeof(chunkNames) / sizeof(chunkNames[0]);
+static_assert(18 == chunkTypesCount, "chunk types length error");
 
 
-static std::string jsonArray(const uint8_t* buff,int length){
+static std::string jsonArray(const uint8_t* buff, int length){
 	std::ostringstream oss;
-	oss<<"[";
-	for(int i=0;i!=length;++i){
-		oss<<(uint32_t)buff[i];
-		if(i!=length-1)
-			oss<<",";
+	oss << "[";
+	for (int i = 0; i != length; ++i){
+		oss << (uint32_t)buff[i];
+		if (i != length - 1)
+			oss << ",";
 	}
-	oss<<"]";
+	oss << "]";
 	return oss.str();
 }
 
@@ -199,7 +237,7 @@ __declspec(dllexport) void __cdecl dummyfunc(void){
 class SockAddr{
 public:
 	int vtable;
-	void* unknown1;	
+	void* unknown1;
 	union {
 		ADDRESS_FAMILY  sin_family;
 		sockaddr_in v4;
@@ -208,16 +246,16 @@ public:
 	int addrlen;
 };
 
-static_assert(sizeof(SockAddr)==0x28,"size error");
+static_assert(sizeof(SockAddr) == 0x28, "size error");
 std::string sockAddrToString(SockAddr* a4){
 	char ipstringbuffer[128];
-	DWORD ipstringbufferLength=128;
+	DWORD ipstringbufferLength = 128;
 
 	size_t addrlen;
-	if(a4->sin_family==AF_INET) addrlen=sizeof(sockaddr_in);
-	else if(a4->sin_family==AF_INET6) addrlen=sizeof(sockaddr_in6);
+	if (a4->sin_family == AF_INET) addrlen = sizeof(sockaddr_in);
+	else if (a4->sin_family == AF_INET6) addrlen = sizeof(sockaddr_in6);
 	else throw std::runtime_error("unknown addrtype");
-	WSAAddressToStringA((LPSOCKADDR)&a4->v4,addrlen,NULL,ipstringbuffer,&ipstringbufferLength);
+	WSAAddressToStringA((LPSOCKADDR)&a4->v4, addrlen, NULL, ipstringbuffer, &ipstringbufferLength);
 	return std::string(ipstringbuffer);
 }
 
@@ -246,8 +284,8 @@ struct RtmfpList
 	int cap;
 	int unknown;
 	int size;
-	int (__cdecl *onAdd)(int);
-	int (__cdecl *onDel)(int);
+	int(__cdecl *onAdd)(int);
+	int(__cdecl *onDel)(int);
 	ListItem *begin;
 	char buf[64];
 };
@@ -364,24 +402,43 @@ struct NoSession
 
 
 
-std::string payloadToString(const uint8_t* data,const size_t len){
+std::string payloadToString(const uint8_t* data, const size_t len){
 	std::ostringstream oss;
-	const uint8_t* end=data+len;
-	while(data!=end){
-		uint8_t chunkId=*data++;
-		if(chunkId==0x00 || chunkId==0xFF) break;
-		uint32_t chunkLen=*data++;
-		chunkLen=chunkLen<<8 | *data++;		
-		auto end=chunkNames+chunkTypesCount;
-		auto ret=std::find_if(chunkNames,end,[chunkId](const ChunkName& n){return n.chunkId==chunkId;});	
-		if(ret!=end){
-			oss<<" "<<ret->name<<":";
-			ret->toStream(oss,data,chunkLen);			
+	const uint8_t* end = data + len;
+	while (data != end){
+		uint8_t chunkId = *data++;
+		if (chunkId == 0x00 || chunkId == 0xFF) break;
+		uint32_t chunkLen = *data++;
+		chunkLen = chunkLen << 8 | *data++;
+		auto end = chunkNames + chunkTypesCount;
+		auto ret = std::find_if(chunkNames, end, [chunkId](const ChunkName& n){return n.chunkId == chunkId; });
+		if (ret != end){
+			oss << " " << ret->name << ":";
+			ret->toStream(oss, data, chunkLen);
 		}
-		else 
-			oss<<"unknownChunkType "<<chunkId;
+		else
+			oss << "unknownChunkType " << chunkId;
 
-		data+=chunkLen;
+		data += chunkLen;
+	}
+	return oss.str();
+}
+
+std::string flagsToString(uint8_t flags){
+	std::ostringstream oss;
+	int mode = flags & 0x3;
+	oss << "mode:" << mode;
+	if (flags & (1 << 2)){
+		oss << ",TimestampEchoPresent";
+	}
+	if (flags & (1 << 3)){
+		oss << ",TimestampPresent";
+	}
+	if (flags & (1 << 6)){
+		oss << ",TimeCriticalReverse";
+	}
+	if (flags & (1 << 7)){
+		oss << ",TimeCritical";
 	}
 	return oss.str();
 }
@@ -438,24 +495,24 @@ struct Instance
 	bool v17;
 	char gap_43AA[2];
 	int v18;
-	int fillPacketHeader(int a1,int sessionid){		
-		std::ostringstream oss;		
-		oss<<"sessionid:"<<sessionid<<",flags: "<<hexchar(this->flags>>4)<<hexchar(this->flags&0xF)
-			<<",data: "<<payloadToString((unsigned char*)this->ptr,this->len);		
-		std::string msg=oss.str();
-		logToFile("createPacket",msg);
-		int ret=oldfillPacketHeader(this,0,a1,sessionid);
+	int fillPacketHeader(int a1, int sessionid){
+		std::ostringstream oss;
+		oss << "sessionid:" << sessionid << ",flags: " << flagsToString(this->flags)
+			<< ",data: " << payloadToString((unsigned char*)this->ptr, this->len);
+		std::string msg = oss.str();
+		logToFile("createPacket", msg);
+		int ret = oldfillPacketHeader(this, 0, a1, sessionid);
 		return ret;
 	}
 };
 
 
 void NoSession::processInput(SockAddr *addressInfo, int sessionid, int interfaceid){
-	std::ostringstream oss;		
-	oss<<"sessionid:"<<sessionid<<",addr:"<<sockAddrToString(addressInfo)<<",chunks: "<<payloadToString((uint8_t*)this->instance->ptr,this->instance->len);		
-	std::string msg=oss.str();
-	logToFile("NoSesionProcessInput",msg);
-	oldNoSessionProcessInput(this,0,addressInfo,sessionid,interfaceid);
+	std::ostringstream oss;
+	oss << "sessionid:" << sessionid << ",addr:" << sockAddrToString(addressInfo) << ",chunks: " << payloadToString((uint8_t*)this->instance->ptr, this->instance->len);
+	std::string msg = oss.str();
+	logToFile("NoSesionProcessInput", msg);
+	oldNoSessionProcessInput(this, 0, addressInfo, sessionid, interfaceid);
 }
 
 
@@ -467,9 +524,9 @@ public:
 	//construct a key. 
 	char func007AE1E1(const unsigned char *key, int keyType, int direction){
 		size_t keylength;
-		if ( keyType )
+		if (keyType)
 		{
-			if ( keyType == 1 )
+			if (keyType == 1)
 			{
 				keylength = 192;
 			}
@@ -486,10 +543,10 @@ public:
 		{
 			keylength = 128;
 		}
-		keylength=keylength/8;
+		keylength = keylength / 8;
 		std::ostringstream oss;
-		oss<<"key: "<<hexBuffer(key,keylength)<<",direction:"<<direction;
-		logToFile("keyinfo",oss.str());	
+		oss << "key: " << hexBuffer(key, keylength) << ",direction:" << direction;
+		logToFile("keyinfo", oss.str());
 		char ret = oldfunc007AE1E1(this, 0, key, keyType, direction);
 		return ret;
 	}
@@ -556,16 +613,16 @@ public:
 
 	char func007A17EA(uint8_t *dhpublicnumber, int length, int keyType){
 		std::ostringstream oss;
-		oss<<"dhpublicnumber:"<<hexBuffer(dhpublicnumber,length)
-			<<",skic:"<<hexBuffer(this->initiatorNonce->data,this->initiatorNonce->length)
-			<<",skrc:"<<hexBuffer(this->responderNonce->data,this->responderNonce->length)
-			<<",dhprime:"<<hexBuffer(this->info->b1.data,this->info->b1.length)
-			<<",dhprivatekey:"<<hexBuffer(this->info->b2.data,this->info->b2.length);
-		char ret=oldfunc7A17EA(this,0,dhpublicnumber,length,keyType);
-		oss<<",farNonce:"<<hexBuffer(this->farNonce,sizeof(this->farNonce))
-			<<",nearNonce:"<<hexBuffer(this->nearNonce,sizeof(this->nearNonce));
-		std::string msg=oss.str();
-		logToFile("secinfo",msg.c_str());
+		oss << "dhpublicnumber:" << hexBuffer(dhpublicnumber, length)
+			<< ",skic:" << hexBuffer(this->initiatorNonce->data, this->initiatorNonce->length)
+			<< ",skrc:" << hexBuffer(this->responderNonce->data, this->responderNonce->length)
+			<< ",dhprime:" << hexBuffer(this->info->b1.data, this->info->b1.length)
+			<< ",dhprivatekey:" << hexBuffer(this->info->b2.data, this->info->b2.length);
+		char ret = oldfunc7A17EA(this, 0, dhpublicnumber, length, keyType);
+		oss << ",farNonce:" << hexBuffer(this->farNonce, sizeof(this->farNonce))
+			<< ",nearNonce:" << hexBuffer(this->nearNonce, sizeof(this->nearNonce));
+		std::string msg = oss.str();
+		logToFile("secinfo", msg.c_str());
 
 		return ret;
 	}
@@ -583,8 +640,8 @@ struct SumList
 	int cap;
 	int unknown;
 	int unknown2;
-	int (__cdecl *onAdd)(int);
-	int (__cdecl *onDel)(int);
+	int(__cdecl *onAdd)(int);
+	int(__cdecl *onDel)(int);
 	ListItem *begin;
 	char buf[64];
 	int unknown3;
@@ -659,21 +716,21 @@ struct Session
 	int vend;
 
 	void processInput(SockAddr *addressInfo, int sessionid, int interfaceid){
-		std::ostringstream oss;		
-		oss<<"sessionid:"<<sessionid<<",addr:"<<sockAddrToString(addressInfo)<<",data: "<<payloadToString((unsigned char*)this->instance->ptr,this->instance->len);		
-		std::string msg=oss.str();
-		logToFile("SesionProcessInput",msg);
-		oldSessionProcessInput(this,0,addressInfo,sessionid,interfaceid);
+		std::ostringstream oss;
+		oss << "sessionid:" << sessionid << ",addr:" << sockAddrToString(addressInfo) << ",data: " << payloadToString((unsigned char*)this->instance->ptr, this->instance->len);
+		std::string msg = oss.str();
+		logToFile("SesionProcessInput", msg);
+		oldSessionProcessInput(this, 0, addressInfo, sessionid, interfaceid);
 	}
 
 };
 
 
-void logerror(const char* file,long line,const std::string& msg){
+void logerror(const char* file, long line, const std::string& msg){
 	std::ostringstream oss;
-	oss<<"error:\""<<msg<<"\",file: \""<<file<<"\",line: "<<line;
-	std::string err=oss.str();
-	logToFile("error",err.c_str());
+	oss << "error:\"" << msg << "\",file: \"" << file << "\",line: " << line;
+	std::string err = oss.str();
+	logToFile("error", err.c_str());
 }
 
 #define LOG_ERROR(msg) {logerror(__FILE__,__LINE__,msg);}
@@ -685,27 +742,27 @@ class C00B0C408{
 	int vtable;
 	int ref;
 	int socket;
-public:	
+public:
 	int func5DD293(uint8_t *buf, int len, int port, int addressFamily){
-		std::ostringstream oss;		
-		oss<<"socket:"<<this->socket<<",port:"<<port<<",addressFamily:"<<addressFamily<<",data: "<<hexBuffer(buf,len);		
-		std::string msg=oss.str();
-		logToFile("send2",msg);
-		return oldfunc5DD293(this,0,buf,len,port,addressFamily);
+		std::ostringstream oss;
+		oss << "socket:" << this->socket << ",port:" << port << ",addressFamily:" << addressFamily << ",data: " << hexBuffer(buf, len);
+		std::string msg = oss.str();
+		logToFile("send2", msg);
+		return oldfunc5DD293(this, 0, buf, len, port, addressFamily);
 	}
 
-	int func5DD07D(uint8_t *buf, int len, SockAddr* a4){		
-		std::ostringstream oss;			
-		oss<<"socket:"<<this->socket<<",addr:\""<<sockAddrToString(a4)<<"\",data: "<<hexBuffer(buf,len);				
-		logToFile("send",oss.str());
-		return oldfunc5DD07D(this,0,buf,len,a4);
-	}	
+	int func5DD07D(uint8_t *buf, int len, SockAddr* a4){
+		std::ostringstream oss;
+		oss << "socket:" << this->socket << ",addr:\"" << sockAddrToString(a4) << "\",data: " << hexBuffer(buf, len);
+		logToFile("send", oss.str());
+		return oldfunc5DD07D(this, 0, buf, len, a4);
+	}
 	int func5DCFFE(uint8_t *buf, int len, SockAddr* a4){
-		int ret=oldfunc5DCFFE(this,0,buf,len,a4);	
-		if(ret>0){			
+		int ret = oldfunc5DCFFE(this, 0, buf, len, a4);
+		if (ret > 0){
 			std::ostringstream oss;
-			oss<<"socket:"<<this->socket<<",addr:\""<<sockAddrToString(a4)<<"\",data: "<<hexBuffer(buf,ret);	
-			logToFile("recv",oss.str());			
+			oss << "socket:" << this->socket << ",addr:\"" << sockAddrToString(a4) << "\",data: " << hexBuffer(buf, ret);
+			logToFile("recv", oss.str());
 		}
 		return ret;
 	}
@@ -713,7 +770,7 @@ public:
 
 
 template <typename T>
-union CONV{	
+union CONV{
 	void* p;
 	T orig;
 };
@@ -728,60 +785,62 @@ static void* toPVOID(T t){
 static void doRegister(){
 	LONG error;
 	DetourTransactionBegin();
-	DetourUpdateThread( GetCurrentThread() );
-	
-	
+	DetourUpdateThread(GetCurrentThread());
+
+
 
 
 	//记录key
 	DetourAttach(&(PVOID &)oldfunc007AE1E1, toPVOID(&C00B4F258::func007AE1E1));
 
 	//计算AES key
-	DetourAttach(&(PVOID &)oldfunc7A17EA, toPVOID(&BasicCryptoKey::func007A17EA));
-	//发送局域网UDP广播
-	DetourAttach(&(PVOID &)oldfunc5DD293, toPVOID(&C00B0C408::func5DD293));
-	//收到UDP包
-	DetourAttach(&(PVOID &)oldfunc5DCFFE, toPVOID(&C00B0C408::func5DCFFE));
-	//发送UDP包
-	DetourAttach(&(PVOID &)oldfunc5DD07D, toPVOID(&C00B0C408::func5DD07D));
+	DetourAttach(&(PVOID &)oldfunc7A17EA, toPVOID(&BasicCryptoKey::func007A17EA));	
 
 	DetourAttach(&(PVOID &)oldfillPacketHeader, toPVOID(&Instance::fillPacketHeader));
 	DetourAttach(&(PVOID &)oldNoSessionProcessInput, toPVOID(&NoSession::processInput));
 	DetourAttach(&(PVOID &)oldSessionProcessInput, toPVOID(&Session::processInput));
 
-	error=DetourTransactionCommit(); 
-	if(error==NO_ERROR){
-		logToFile("begin","");
+	/*//发送局域网UDP广播
+	DetourAttach(&(PVOID &)oldfunc5DD293, toPVOID(&C00B0C408::func5DD293));
+	//收到UDP包
+	DetourAttach(&(PVOID &)oldfunc5DCFFE, toPVOID(&C00B0C408::func5DCFFE));
+	//发送UDP包
+	DetourAttach(&(PVOID &)oldfunc5DD07D, toPVOID(&C00B0C408::func5DD07D));*/
+
+	error = DetourTransactionCommit();
+	if (error == NO_ERROR){
+		logToFile("begin", "");
 	}
 }
 
 static void doUnRegister(){
 	LONG error;
 	DetourTransactionBegin();
-	DetourUpdateThread( GetCurrentThread() );
+	DetourUpdateThread(GetCurrentThread());
 	//DetourDetach( &(PVOID &)oldfunc7A6807,(PVOID)(&(PVOID&) DiffieHellmanContext::func7A6807));
 	DetourDetach(&(PVOID &)oldfunc7A17EA, toPVOID(&BasicCryptoKey::func007A17EA));
-	DetourDetach(&(PVOID &)oldfunc5DD293, toPVOID(&C00B0C408::func5DD293));
-	DetourDetach(&(PVOID &)oldfunc5DCFFE, toPVOID(&C00B0C408::func5DCFFE));
-	DetourDetach(&(PVOID &)oldfunc5DD07D, toPVOID(&C00B0C408::func5DD07D));
 	DetourDetach(&(PVOID &)oldfunc007AE1E1, toPVOID(&C00B4F258::func007AE1E1));
 	DetourDetach(&(PVOID &)oldfillPacketHeader, toPVOID(&Instance::fillPacketHeader));
 	DetourDetach(&(PVOID &)oldNoSessionProcessInput, toPVOID(&NoSession::processInput));
 	DetourDetach(&(PVOID &)oldSessionProcessInput, toPVOID(&Session::processInput));
-	error=DetourTransactionCommit(); 
-	logToFile("end","");
+
+	/*	DetourDetach(&(PVOID &)oldfunc5DD293, toPVOID(&C00B0C408::func5DD293));
+	DetourDetach(&(PVOID &)oldfunc5DCFFE, toPVOID(&C00B0C408::func5DCFFE));
+	DetourDetach(&(PVOID &)oldfunc5DD07D, toPVOID(&C00B0C408::func5DD07D));*/
+	error = DetourTransactionCommit();
+	logToFile("end", "");
 }
 
-BOOL APIENTRY DllMain( HMODULE hModule,
+BOOL APIENTRY DllMain(HMODULE hModule,
 	DWORD  ul_reason_for_call,
 	LPVOID lpReserved
 	)
-{	
+{
 
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
-		initLogFile("flash.log");		
+		initLogFile("flash.log");
 		doRegister();
 		break;
 	case DLL_THREAD_ATTACH:
